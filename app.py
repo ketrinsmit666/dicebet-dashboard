@@ -9,8 +9,11 @@ import streamlit as st
 import streamlit.components.v1 as components
 from analytics import PRIMARY,compare,DEFAULTS
 ROOT=Path(__file__).resolve().parent
-DATA=Path(os.environ.get('REPORT_DATA_DIR',ROOT/'data'))
-SITE=Path(os.environ.get('REPORT_SITE_DIR',ROOT/'reporting/site'))
+# Accept both a structured project and browser uploads flattened into the root.
+DEFAULT_DATA=ROOT/'data' if (ROOT/'data/targets.csv').is_file() else ROOT
+DEFAULT_SITE=ROOT/'reporting/site' if (ROOT/'reporting/site/retention.html').is_file() else ROOT
+DATA=Path(os.environ.get('REPORT_DATA_DIR',DEFAULT_DATA))
+SITE=Path(os.environ.get('REPORT_SITE_DIR',DEFAULT_SITE))
 PAGES={'home':'Главная · план–факт','late_ftd':'Долёты','retention':'Ретеншен и воронка','crm':'CRM-рассылки','reactivation':'Реактивация','pulsation':'Операционная пульсация','projects':'Задачи команды'}
 FLOWS={'welcome':'Вся welcome-цепочка','dep1_2':'Письма: 1 → 2 депозит','dep2_3':'Письма: 2 → 3 депозит','dep3_5':'Письма: 3 → 5 депозитов','dep5_8':'Письма: 5 → 8 депозитов','late_ftd':'Письма для долётчиков'}
 st.set_page_config(page_title='Отчёты отдела',layout='wide')
