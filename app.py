@@ -1,56 +1,31 @@
-import streamlit as st
-import pandas as pd
-import plotly.express as px
+"""Streamlit entrypoint. All files can be uploaded to repository root."""
 from pathlib import Path
-
-st.set_page_config(page_title='Analytics Portal', layout='wide')
-BASE=Path(__file__).parent/'data'
-
-@st.cache_data
-def load_users(): return pd.read_csv(BASE/'users.csv', parse_dates=['registration_date','ftd_date','last_activity_date'])
-@st.cache_data
-def load_metrics(): return pd.read_csv(BASE/'metrics.csv', parse_dates=['activity_date','previous_active_date'])
-
-users=load_users()
-metrics=load_metrics()
-
-main_geo=['TR','AR','CO','IN']
-
-page=st.sidebar.radio('Раздел',['Главная','Долеты','Retention','Reactivation','CRM (mockup)'])
-
-if page=='Главная':
-    st.title('Analytics Portal')
-    st.subheader('План-факт и алерты')
-    st.info('Макет: подключение планов и автоматических алертов')
-    st.metric('Сильные изменения','—')
-    st.write('Алерты будут вести на проблемные разделы: депозитная воронка, retention, CRM.')
-
-elif page=='Долеты':
-    st.title('FTD Upsale / Долеты')
-    df=users.dropna(subset=['ftd_date']).copy()
-    geo=st.multiselect('GEO',sorted(df.geo.unique()),default=[x for x in main_geo if x in df.geo.unique()])
-    if geo: df=df[df.geo.isin(geo)]
-    st.metric('FTD игроков',len(df))
-    st.dataframe(df.groupby('geo').size().reset_index(name='FTD'))
-
-elif page=='Retention':
-    st.title('Retention')
-    df=users.dropna(subset=['ftd_date']).copy()
-    geo=st.multiselect('GEO',sorted(df.geo.unique()),default=[x for x in main_geo if x in df.geo.unique()])
-    if geo: df=df[df.geo.isin(geo)]
-    ret=df.groupby('geo')[['active_d1_3_flag','active_d4_7_flag','active_d8_14_flag','active_d15_30_flag']].mean()*100
-    st.dataframe(ret)
-    long=ret.reset_index().melt('geo')
-    st.plotly_chart(px.line(long,x='variable',y='value',color='geo',markers=True),use_container_width=True)
-    st.caption('Добавление Amplitude-style D0-D30 возможно через metrics activity_date')
-
-elif page=='Reactivation':
-    st.title('Reactivation / Churn')
-    df=metrics.copy()
-    df['churn_category']=pd.cut(df['days_since_previous_active_day'],[-1,7,14,30,60,90,180,99999],labels=['1-7','8-14','15-30','31-60','61-90','91-180','181+'])
-    st.dataframe(df.groupby('churn_category').size().reset_index(name='events'))
-    st.caption('Доля реактивации будет рассчитана после агрегации player-day')
-
-else:
-    st.title('CRM dashboard (mockup)')
-    st.write('Welcome, 1→2 deposit, 2→3 deposit, retention CRM journeys — data pending')
+import json,re
+from urllib.parse import urlencode
+import streamlit as st
+import streamlit.components.v1 as components
+ROOT=Path(__file__).resolve().parent
+st.set_page_config(page_title='Отчёты отдела',layout='wide')
+PAGES={'index':'Главная · план–факт','late_ftd':'Долёты','retention':'Ретеншен и воронка','pulsation':'Пульсация','reactivation':'Чарн и реактивация','crm':'CRM · макет','crm_controls':'CRM · контрольные группы','crm_experiment':'CRM · эксперимент','projects':'Задачи команды'}
+page=st.query_params.get('page','index')
+if page=='home':page='index'
+if page not in PAGES:page='index'
+with st.sidebar:
+ st.title('Отчёты отдела')
+ for key,label in PAGES.items():
+  if st.button(label,key=key,use_container_width=True,type='primary' if page==key else 'secondary'):
+   st.query_params.clear();st.query_params['page']=key;st.rerun()
+ st.caption('TR · AR · CO · IN — основные GEO')
+ st.caption('Факт по 30.09.2026. CRM пока без данных.')
+path=ROOT/(page+'.html')
+if not path.exists():st.error('Файл раздела отсутствует: '+path.name);st.stop()
+html=path.read_text()
+# Inline local CRM assets for components.html, which has no relative file access.
+html=html.replace('<link rel="stylesheet" href="crm.css">','<style>'+(ROOT/'crm.css').read_text()+'</style>')
+html=html.replace('<script src="crm.js"></script>','<script>'+(ROOT/'crm.js').read_text()+'</script>')
+query='?'+urlencode({k:v for k,v in st.query_params.items() if k!='page'})
+html=html.replace('new URLSearchParams(location.search)','new URLSearchParams('+json.dumps(query)+')')
+# Covers static and dynamically rendered navigation inside iframe; keeps all filter parameters.
+bridge="""<script>document.addEventListener('click',function(e){const a=e.target.closest('a');if(!a)return;const raw=a.getAttribute('href')||'';const m=raw.match(/^([a-z_]+)\\.html(?:\\?(.*))?$/);if(!m)return;e.preventDefault();const q=new URLSearchParams(m[2]||'');q.set('page',m[1]);const dest=document.createElement('a');dest.href='?'+q.toString();dest.target='_top';document.body.appendChild(dest);dest.click();dest.remove();});</script>"""
+html=html.replace('</body>',bridge+'</body>')
+components.html(html,height=1450,scrolling=True)

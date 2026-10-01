@@ -1,0 +1,31 @@
+РАСПАКОВАТЬ ZIP И ЗАГРУЗИТЬ ФАЙЛЫ В КОРЕНЬ РЕПОЗИТОРИЯ.
+ПАПОК СОЗДАВАТЬ НЕ НУЖНО. СЫРЫЕ CSV USERS/METRICS/BONUSES В РЕПОЗИТОРИЙ НЕ ЗАГРУЖАТЬ.
+Streamlit Main file path: app.py
+
+ОБЯЗАТЕЛЬНЫЕ ФАЙЛЫ ДЛЯ РАБОТЫ ПРИЛОЖЕНИЯ:
+app.py
+requirements.txt
+index.html
+pulsation.html
+retention.html
+late_ftd.html
+reactivation.html
+crm.html
+crm_controls.html
+crm_experiment.html
+crm.css
+crm.js
+projects.html
+
+ВСЕ ФАЙЛЫ ДЛЯ БУДУЩЕГО ПЕРЕСЧЁТА (ТОЖЕ В КОРНЕ; МОЖНО ЗАГРУЗИТЬ ВМЕСТЕ):
+README.md
+VALIDATION.txt
+build_data.py
+refresh.py
+render_html.py
+dashboard.css
+dashboard.js
+targets.csv
+manual_facts.csv
+
+Примечание: dashboard_data.json и исходные player-level CSV приложению для просмотра не нужны: данные отчёта уже встроены в HTML-страницы. dashboard_data.json создаётся заново при запуске refresh.py и также не обязателен для коммита.
