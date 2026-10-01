@@ -1,0 +1,2 @@
+# dicebet-dashboard
+CRM Dashboard
