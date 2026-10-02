@@ -96,6 +96,8 @@ def build(users,metrics,bonuses,registry,output,as_of,users_complete=False):
  lastafter=am[am.day>=0].groupby('player_id').day.max();u['last_after']=u.player_id.map(lastafter).fillna(-1)
  observed_deps=m.groupby('player_id').deposit_cnt.sum();u['dep_observed']=u.player_id.map(observed_deps).fillna(0)
  # Lifetime counts are a snapshot and may include October 1; fixed windows are cut off at September 30.
+ u['deptotal']=u.player_id.map(dm[dm.day>=0].groupby('player_id').deposit_cnt.sum()).fillna(0)
+ u['adtotal']=u.player_id.map(am[am.day>=0].groupby('player_id').size()).fillna(0)
  for w in [7,30]:
   z=dm[dm.day.between(0,w)].groupby('player_id').deposit_cnt.sum();u[f'dep{w}']=u.player_id.map(z).fillna(0)
   a=am[am.day.between(0,w)].groupby('player_id').size();u[f'ad{w}']=u.player_id.map(a).fillna(0)
@@ -105,6 +107,9 @@ def build(users,metrics,bonuses,registry,output,as_of,users_complete=False):
  for w in [3,7,14,30]:u[f'roll{w}']=((u.last_after>=w)&(u.age>=w)&(u.ftd_date>=start)).astype(int)
  for key in ['ggr_usd','bonus_cost_usd','ngr_usd']:
   s=dm[dm.day.between(0,30)].groupby('player_id')[key].sum(min_count=1);u[key]=u.player_id.map(s).fillna(0)
+ for key in ['ggr_usd','bonus_cost_usd','ngr_usd']:
+  z=m[(m.activity_date.dt.strftime('%Y-%m')==m.ftd_month)&(m.activity_date>=m.ftd_date)].groupby('player_id')[key].sum(min_count=1)
+  u['calendar_'+key]=u.player_id.map(z).fillna(0)
  cohort=[]
  cohort_users=u[u.registration_date>=start]
  for dims,g in cohort_users.groupby(['reg_month','geo'],dropna=False):
@@ -136,11 +141,14 @@ def build(users,metrics,bonuses,registry,output,as_of,users_complete=False):
  for onlylate,target in [(False,funnel),(True,late)]:
   sub=u[(u.ftd==1)&(u.ftd_date>=start)]
   if onlylate:sub=sub[sub.late]
-  for (month,geo,reg),g in sub.groupby(['ftd_month','geo','reg_month']):
+  for dims,g in sub.groupby(['ftd_month','geo','reg_month']+(['lag'] if onlylate else [])):
+   month,geo,reg=dims[:3]
    row={'month':month,'geo':geo,'reg_month':reg,'n':len(g),'delay_sum':float(g.lag.sum()),'ftd_sum':float(g.ftd_amount_usd.sum())}
-   for w in [7,30]:
-    e=g[g.age>=w];row[f'base{w}']=len(e);row[f'active{w}']=int(e[f'ad{w}'].sum())
-    for k in [1,2,3,5,8]:row[f'd{w}_{k}']=int((e[f'dep{w}']>=k).sum())
+   if onlylate:row['delay']=int(dims[3])
+   for key in ['ggr_usd','bonus_cost_usd','ngr_usd']:row['calendar_'+key]=float(g['calendar_'+key].sum())
+   for w in [7,30,'total']:
+    e=g if w=='total' else g[g.age>=w];row[f'base{w}']=len(e);row[f'active{w}']=int(e[f'ad{w}'].sum())
+    for k in range(1,11):row[f'd{w}_{k}']=int((e[f'dep{w}']>=k).sum())
    e=g[g.age>=30]
    for key in ['ggr_usd','bonus_cost_usd','ngr_usd']:row[key]=float(e[key].sum())
    for w in [3,7,14,30]:row[f'b{w}']=int(g[f'b{w}'].sum());row[f'roll{w}']=int(g[f'roll{w}'].sum())
@@ -154,6 +162,25 @@ def build(users,metrics,bonuses,registry,output,as_of,users_complete=False):
  # Monthly unique active players cannot be reconstructed from daily user counts.
  active['month']=active.activity_date.dt.strftime('%Y-%m')
  monthly=active.groupby(['month','geo']).agg(mau=('player_id','nunique'),active_days=('player_id','size')).reset_index()
+ # Adjacent calendar-month sets. Historical LAG seeds count as previously active.
+ month_flows=[];month_cohorts=[]
+ calendar=pd.period_range(start,end,freq='M').astype(str).tolist()
+ for geo,g in active.groupby('geo'):
+  sets={mo:set(a.player_id) for mo,a in g.groupby('month')}
+  seen=set(g.loc[g.prev<start,'player_id'])
+  for i,mo in enumerate(calendar):
+   cur=sets.get(mo,set());prev=sets.get(calendar[i-1],set()) if i else set()
+   if i:
+    held=cur&prev;new=cur-seen;back=cur-prev-new
+    month_flows.append(dict(month=mo,geo=geo,previous=len(prev),current=len(cur),retained=len(held),lost=len(prev-cur),new=len(new),returned=len(back)))
+   seen|=cur
+ actmonth=active[['player_id','month']].drop_duplicates().merge(cohort_users[['player_id','reg_month','geo']],on='player_id')
+ counts=actmonth.groupby(['reg_month','geo','month']).size()
+ for (reg,geo),g in cohort_users.groupby(['reg_month','geo']):
+  for mo in calendar:
+   if mo>=reg:
+    offset=(int(mo[:4])-int(reg[:4]))*12+int(mo[5:])-int(reg[5:])
+    month_cohorts.append(dict(reg_month=reg,geo=geo,month=mo,offset=offset,base=len(g),active=int(counts.get((reg,geo,mo),0)),complete=bool(pd.Period(mo).end_time.normalize()<=end)))
  # Bonus creation cohorts are separate from transaction-date cost in metrics.
  bonus=[];bonusmeta={}
  for chunk in pd.read_csv(bonuses,chunksize=100000):
@@ -167,7 +194,7 @@ def build(users,metrics,bonuses,registry,output,as_of,users_complete=False):
   bonus+=records(chunk.groupby(['month','geo','bonus_type_name','given_bonus_state_name']).agg(issued=('issued','sum'),transferred=('transferred','sum'),transferred_value=('transferred_value','sum'),freespins=('fs','sum')).reset_index())
  bonus=records(pd.DataFrame(bonus).groupby(['month','geo','bonus_type_name','given_bonus_state_name'],as_index=False)[['issued','transferred','transferred_value','freespins']].sum())
  meta={'as_of':str(end.date()),'activity_start':str(start.date()),'source_snapshot':as_of,'full_registry_from':full_from,'registry_note':registry_note,'users':len(u),'metrics_rows':len(m),'active_users':active.player_id.nunique(),'financial_missing_rows':int(m[['ggr_usd','ngr_usd','turnover_usd','bonus_cost_usd']].isna().any(axis=1).sum()),'lag_seed_users':seed_count,'unknown_profile_users':unknown_profiles,'buckets':[x[2] for x in BUCKETS],'primary':PRIMARY,'geos':geos,'months':sorted(daily.date.str[:7].unique()),'warnings':['Активность = день со ставкой или депозитом. Бонусные операции без них не активность.','Неактивность и возвраты — в наблюдаемой базе. LAG добавляет '+str(seed_count)+' предыдущих активностей до начала истории; игроки без событий во всём окне всё ещё могут отсутствовать в базе чарна.','Линия от ставки использует ставки из metrics, календарные дни и регистрации внутри истории. Соответствие Any money bet в Amplitude требует подтверждения состава SQL.',registry_note+' Регистрационная история с '+str(full_from)+'. Неизвестные GEO бонусных операций: '+str(unknown_profiles)+' игроков.','Верификация — email или SMS, не KYC. Статусы контактов на момент выгрузки.','Выводов средств нет в новых CSV. Их показатели не подменяются нулями.','Bonus cost и NGR по датам — из metrics. Бонусная детализация — по месяцу выдачи, статус на дату выгрузки.']}
- data={'meta':meta,'daily':records(daily),'reactivation':records(r),'cohorts':cohort,'curves':curve,'funnel':funnel,'late':late,'monthly':records(monthly),'bonuses':bonus,'alerts':alerts}
+ data={'meta':meta,'daily':records(daily),'reactivation':records(r),'cohorts':cohort,'curves':curve,'funnel':funnel,'late':late,'monthly':records(monthly),'bonuses':bonus,'alerts':alerts,'month_flows':month_flows,'month_cohorts':month_cohorts}
  (out/'dashboard_data.json').write_text(json.dumps(data,ensure_ascii=False,separators=(',',':'),allow_nan=False))
  print(json.dumps(meta,ensure_ascii=False,indent=2))
  return data

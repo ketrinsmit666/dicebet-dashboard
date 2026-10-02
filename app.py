@@ -1,6 +1,6 @@
 """Streamlit entrypoint. All files can be uploaded to repository root."""
 from pathlib import Path
-import json,re
+import json,re,csv
 from urllib.parse import urlencode
 import streamlit as st
 import streamlit.components.v1 as components
@@ -20,6 +20,15 @@ with st.sidebar:
 path=ROOT/(page+'.html')
 if not path.exists():st.error('Файл раздела отсутствует: '+path.name);st.stop()
 html=path.read_text()
+# CSV plans are authoritative even when an older standalone HTML remains in Git.
+for filename,key in [('targets.csv','plans'),('manual_facts.csv','manual')]:
+ plan_path=ROOT/filename
+ if plan_path.exists():
+  with plan_path.open(encoding='utf-8-sig') as f: rows=list(csv.DictReader(f))
+  payload=json.dumps(rows,ensure_ascii=False).replace('</','<\\/')
+  marker='</script><script>'
+  html=html.replace(marker,'</script><script>DATA.'+key+'='+payload+';</script><script>',1)
+
 # Inline local CRM assets for components.html, which has no relative file access.
 html=html.replace('<link rel="stylesheet" href="crm.css">','<style>'+(ROOT/'crm.css').read_text()+'</style>')
 html=html.replace('<script src="crm.js"></script>','<script>'+(ROOT/'crm.js').read_text()+'</script>')
