@@ -35,7 +35,7 @@ def build(users,metrics,bonuses,registry,output,as_of,users_complete=False):
  u['late']=u.ftd_date.notna()&(u.ftd_month>u.reg_month)
  u['age']=(end-u.ftd_date).dt.days
  # Day-grain money is authoritative; source nulls are tracked, never silently turned into known zero.
- fin=['deposit_cnt','deposit_sum_usd','bet_cnt','turnover_usd','win_amount_usd','ggr_usd','bonus_transferred_cnt','bonus_cost_usd','ngr_usd']
+ fin=['deposit_cnt','deposit_sum_usd','withdrawal_cnt','withdrawal_sum_usd','net_deposit_usd','bet_cnt','turnover_usd','win_amount_usd','ggr_usd','bonus_transferred_cnt','bonus_cost_usd','ngr_usd']
  m=m.merge(u[['player_id','geo','registration_date','ftd_date','reg_month','ftd_month']],on='player_id',how='left',validate='many_to_one')
  missing_active=m.geo.isna()&((m.bet_cnt>0)|(m.deposit_cnt>0))
  assert not missing_active.any(),'Missing profiles for active players'
@@ -61,13 +61,15 @@ def build(users,metrics,bonuses,registry,output,as_of,users_complete=False):
  agg=m.groupby(['activity_date','geo'])[fin].sum(min_count=1)
  bad=m.assign(financial_missing=m[['turnover_usd','ggr_usd','bonus_cost_usd','ngr_usd']].isna().any(axis=1).astype(int)).groupby(['activity_date','geo']).financial_missing.sum()
  counts=active.groupby(['activity_date','geo']).agg(active=('player_id','size'),new_reg=('new_reg','sum'),first_seen=('first_seen','sum'),return_short=('return_short','sum'),reactivated=('reactivated','sum'),continuing=('continuing','sum'))
+ assert np.allclose(m.net_deposit_usd,m.deposit_sum_usd-m.withdrawal_sum_usd,equal_nan=True),'Net deposit mismatch'
+ withdrawers=m[m.withdrawal_cnt>0].groupby(['activity_date','geo']).size().rename('withdrawers')
  dep=m[m.deposit_cnt>0].groupby(['activity_date','geo']).size().rename('depositors')
  bettors=m[m.bet_cnt>0].groupby(['activity_date','geo']).size().rename('casino_players')
  regs=u.groupby(['registration_date','geo']).size().rename('registrations');regs.index.names=['activity_date','geo']
  ftd=u[u.ftd==1].groupby(['ftd_date','geo']).size().rename('ftd');ftd.index.names=['activity_date','geo']
  geos=sorted(set(u.geo.unique())|set(m.geo.unique()));dates=pd.date_range(start,end)
  ix=pd.MultiIndex.from_product([dates,geos],names=['activity_date','geo'])
- daily=agg.reindex(ix).fillna(0).join([counts,dep,bettors,bad,regs,ftd]).fillna(0)
+ daily=agg.reindex(ix).fillna(0).join([counts,dep,withdrawers,bettors,bad,regs,ftd]).fillna(0)
  # Stocks are intervals, no daily player Cartesian product. Opening idle = d - previous_active - 1.
  react=[]
  active['next']=active.groupby('player_id').activity_date.shift(-1)
@@ -170,9 +172,11 @@ def build(users,metrics,bonuses,registry,output,as_of,users_complete=False):
   seen=set(g.loc[g.prev<start,'player_id'])
   for i,mo in enumerate(calendar):
    cur=sets.get(mo,set());prev=sets.get(calendar[i-1],set()) if i else set()
-   if i:
+   if i and pd.Period(calendar[i-1]).start_time>=start and pd.Period(mo).end_time.normalize()<=end:
     held=cur&prev;new=cur-seen;back=cur-prev-new
-    month_flows.append(dict(month=mo,geo=geo,previous=len(prev),current=len(cur),retained=len(held),lost=len(prev-cur),new=len(new),returned=len(back)))
+    regnew=set(u.loc[(u.geo==geo)&(u.reg_month==mo),'player_id'])&cur
+    oldin=cur-prev-regnew
+    month_flows.append(dict(new_regs=len(regnew),existing_in=len(oldin),month=mo,geo=geo,previous=len(prev),current=len(cur),retained=len(held),lost=len(prev-cur),new=len(new),returned=len(back)))
    seen|=cur
  actmonth=active[['player_id','month']].drop_duplicates().merge(cohort_users[['player_id','reg_month','geo']],on='player_id')
  counts=actmonth.groupby(['reg_month','geo','month']).size()
@@ -193,7 +197,7 @@ def build(users,metrics,bonuses,registry,output,as_of,users_complete=False):
   chunk['fs']=chunk.freespin_amount.fillna(0)
   bonus+=records(chunk.groupby(['month','geo','bonus_type_name','given_bonus_state_name']).agg(issued=('issued','sum'),transferred=('transferred','sum'),transferred_value=('transferred_value','sum'),freespins=('fs','sum')).reset_index())
  bonus=records(pd.DataFrame(bonus).groupby(['month','geo','bonus_type_name','given_bonus_state_name'],as_index=False)[['issued','transferred','transferred_value','freespins']].sum())
- meta={'as_of':str(end.date()),'activity_start':str(start.date()),'source_snapshot':as_of,'full_registry_from':full_from,'registry_note':registry_note,'users':len(u),'metrics_rows':len(m),'active_users':active.player_id.nunique(),'financial_missing_rows':int(m[['ggr_usd','ngr_usd','turnover_usd','bonus_cost_usd']].isna().any(axis=1).sum()),'lag_seed_users':seed_count,'unknown_profile_users':unknown_profiles,'buckets':[x[2] for x in BUCKETS],'primary':PRIMARY,'geos':geos,'months':sorted(daily.date.str[:7].unique()),'warnings':['Активность = день со ставкой или депозитом. Бонусные операции без них не активность.','Неактивность и возвраты — в наблюдаемой базе. LAG добавляет '+str(seed_count)+' предыдущих активностей до начала истории; игроки без событий во всём окне всё ещё могут отсутствовать в базе чарна.','Линия от ставки использует ставки из metrics, календарные дни и регистрации внутри истории. Соответствие Any money bet в Amplitude требует подтверждения состава SQL.',registry_note+' Регистрационная история с '+str(full_from)+'. Неизвестные GEO бонусных операций: '+str(unknown_profiles)+' игроков.','Верификация — email или SMS, не KYC. Статусы контактов на момент выгрузки.','Выводов средств нет в новых CSV. Их показатели не подменяются нулями.','Bonus cost и NGR по датам — из metrics. Бонусная детализация — по месяцу выдачи, статус на дату выгрузки.']}
+ meta={'as_of':str(end.date()),'activity_start':str(start.date()),'source_snapshot':as_of,'full_registry_from':full_from,'registry_note':registry_note,'users':len(u),'metrics_rows':len(m),'active_users':active.player_id.nunique(),'financial_missing_rows':int(m[['ggr_usd','ngr_usd','turnover_usd','bonus_cost_usd']].isna().any(axis=1).sum()),'lag_seed_users':seed_count,'unknown_profile_users':unknown_profiles,'buckets':[x[2] for x in BUCKETS],'primary':PRIMARY,'geos':geos,'months':sorted(daily.date.str[:7].unique()),'warnings':['Активность = день со ставкой или депозитом. Бонусные операции без них не активность.','Неактивность и возвраты — в наблюдаемой базе. LAG добавляет '+str(seed_count)+' предыдущих активностей до начала истории; игроки без событий во всём окне всё ещё могут отсутствовать в базе чарна.','Линия от ставки использует ставки из metrics, календарные дни и регистрации внутри истории. Соответствие Any money bet в Amplitude требует подтверждения состава SQL.',registry_note+' Регистрационная история с '+str(full_from)+'. Неизвестные GEO бонусных операций: '+str(unknown_profiles)+' игроков.','Верификация — email или SMS, не KYC. Статусы контактов на момент выгрузки.','In/Out = депозиты минус выводы; это движение средств, не прибыль. Вывод сам по себе не считается игровой активностью.','Bonus cost и NGR по датам — из metrics. Бонусная детализация — по месяцу выдачи, статус на дату выгрузки.']}
  data={'meta':meta,'daily':records(daily),'reactivation':records(r),'cohorts':cohort,'curves':curve,'funnel':funnel,'late':late,'monthly':records(monthly),'bonuses':bonus,'alerts':alerts,'month_flows':month_flows,'month_cohorts':month_cohorts}
  (out/'dashboard_data.json').write_text(json.dumps(data,ensure_ascii=False,separators=(',',':'),allow_nan=False))
  print(json.dumps(meta,ensure_ascii=False,indent=2))
