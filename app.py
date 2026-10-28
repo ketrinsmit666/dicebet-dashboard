@@ -16,7 +16,7 @@ with st.sidebar:
   if st.button(label,key=key,use_container_width=True,type='primary' if page==key else 'secondary'):
    st.query_params.clear();st.query_params['page']=key;st.rerun()
  st.caption('TR · AR · CO · IN — основные GEO')
- st.caption('Факт по 30.09.2026. CRM пока без данных.')
+ st.caption('Дата актуальности указана в шапке каждого отчёта. CRM пока без данных.')
 path=ROOT/(page+'.html')
 if not path.exists():st.error('Файл раздела отсутствует: '+path.name);st.stop()
 html=path.read_text()

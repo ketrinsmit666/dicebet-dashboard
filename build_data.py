@@ -19,7 +19,8 @@ def build(users,metrics,bonuses,registry,output,as_of,users_complete=False):
  # Missing bonus-only profiles can be shown as UNKNOWN; missing active profiles block retention.
  unknown_profiles=int(m.loc[~m.player_id.isin(u.player_id),'player_id'].nunique())
  registry_note='Только users: полная база регистраций не подтверждена; конверсия выборки.'
- full_from=start.strftime('%Y-%m') if users_complete else None
+ cohort_start=start if start.day==1 else (start+pd.offsets.MonthBegin(1))
+ full_from=cohort_start.strftime('%Y-%m') if users_complete else None
  if users_complete:registry_note='Полная выгрузка users; регистрационные когорты ограничены окном activity_start — as_of. Верификация отражает состояние контактов на дату выгрузки.'
  if registry:
   o=pd.read_csv(registry,usecols=['player_id','geo_short','registration_date','ftd_date','email_verified_flag','sms_verified_flag','deposit_count_total']).rename(columns={'geo_short':'geo'})
@@ -113,7 +114,7 @@ def build(users,metrics,bonuses,registry,output,as_of,users_complete=False):
   z=m[(m.activity_date.dt.strftime('%Y-%m')==m.ftd_month)&(m.activity_date>=m.ftd_date)].groupby('player_id')[key].sum(min_count=1)
   u['calendar_'+key]=u.player_id.map(z).fillna(0)
  cohort=[]
- cohort_users=u[u.registration_date>=start]
+ cohort_users=u[u.registration_date>=cohort_start]
  for dims,g in cohort_users.groupby(['reg_month','geo'],dropna=False):
   row={'month':dims[0],'geo':dims[1],'regs':len(g),'ftd':int(g.ftd.sum()),'verified':int(g.verified.sum()),'email':int(g.email_verified_flag.sum()),'sms':int(g.sms_verified_flag.sum()),'late':int(g.late.sum())}
   for w in [3,7,14,30]:row.update({f'b{w}':int(g[f'b{w}'].sum()),f'r{w}':int(g[f'r{w}'].sum()),f'roll{w}':int(g[f'roll{w}'].sum())})
