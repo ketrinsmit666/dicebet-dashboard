@@ -2,7 +2,7 @@
 from pathlib import Path
 import json,csv
 ROOT=Path(__file__).resolve().parent
-SETS={'index':['late','funnel','alerts','daily'],'pulsation':['daily','monthly','bonuses','month_flows'],'retention':['cohorts','curves','funnel','month_flows','month_cohorts'],'late_ftd':['late'],'reactivation':['reactivation']}
+SETS={'index':['late','funnel','alerts','daily'],'pulsation':['daily','monthly','bonuses','month_flows','health_windows'],'retention':['cohorts','curves','funnel','month_flows','month_cohorts','traffic'],'late_ftd':['late','late_rates'],'reactivation':['reactivation','react_unique'],'projects':[]}
 def render(root=ROOT):
  root=Path(root);data=json.loads((root/'dashboard_data.json').read_text())
  for f,key in [('targets.csv','plans'),('manual_facts.csv','manual')]:
