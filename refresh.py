@@ -10,6 +10,6 @@ if __name__=='__main__':
   temp=Path(tmp)
   for f in ['targets.csv','manual_facts.csv','dashboard.css','dashboard.js']:shutil.copyfile(ROOT/f,temp/f)
   build(a.users,a.metrics,a.bonuses,a.registry,temp,a.as_of,a.users_complete);render(temp)
-  for f in ['dashboard_data.json','index.html','retention.html','pulsation.html','late_ftd.html','reactivation.html','projects.html']:
+  for f in ['dashboard_data.json','index.html','retention.html','pulsation.html','late_ftd.html','reactivation.html']:
    target=ROOT/f;staged=target.with_suffix(target.suffix+'.tmp');shutil.copyfile(temp/f,staged);staged.replace(target)
  print('Updated locally. Publish validated output files in one Git commit/deployment.')

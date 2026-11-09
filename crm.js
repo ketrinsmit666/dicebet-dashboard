@@ -1,9 +1,9 @@
 const $=id=>document.getElementById(id),q=new URLSearchParams(location.search),page=document.body.dataset.page;
-const flows={all:'Все цепочки',welcome:'Вся welcome-цепочка',dep1_2:'1 → 2 депозит',dep2_3:'2 → 3 депозит',dep3_5:'3 → 5 депозитов',dep5_8:'5 → 8 депозитов',dep8_10:'8 → 10 депозитов',late_ftd:'Долёты',reactivation:'Реактивация',retention:'Retention',promo:'Промо'};
+const flows={all:'Все цепочки',welcome:'Вся welcome-цепочка',dep1_2:'1 → 2 депозит',dep2_3:'2 → 3 депозит',dep3_5:'3 → 5 депозитов',dep5_8:'5 → 8 депозитов',late_ftd:'Долёты',reactivation:'Реактивация',retention:'Retention',promo:'Промо'};
 const channels=['Все каналы','Email','SMS','Push','In-app','Telegram','Мультиканальная'];
 const esc=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function opts(id,values){$(id).innerHTML=values.map(([v,l])=>`<option value="${esc(v)}">${esc(l)}</option>`).join('')}
-opts('month',[['2026-11','Ноябрь 2026'],['2026-10','Октябрь 2026'],['2026-09','Сентябрь 2026'],['all','Все месяцы']]);
+opts('month',[['2026-10','Октябрь 2026'],['2026-09','Сентябрь 2026'],['all','Все месяцы']]);
 opts('geo',[['all','Все GEO'],['TR','Турция · TR'],['AR','Аргентина · AR'],['CO','Колумбия · CO'],['IN','Индия · IN']]);
 $('geo').innerHTML+='<optgroup label="Другие GEO"><option value="other">Другие GEO · после подключения</option></optgroup>';
 opts('channel',channels.map((v,i)=>[i?'channel_'+i:'all',v]));opts('flow',Object.entries(flows));opts('vip',[['all','Все'],['0','Не VIP'],['1','VIP']]);opts('window',[['d7','D0–D7'],['d14','D0–D14'],['d30','D0–D30']]);

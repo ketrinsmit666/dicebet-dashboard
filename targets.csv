@@ -22,21 +22,20 @@ month,section,geo,metric,label,target,unit,responsible,previous_month
 2026-10,projects,ALL,crm_dashboard,Разработать и реализовать CRM-дашборд,100,percent,Андреева,
 2026-10,projects,ALL,push_timing,Эксперимент с таймингом пушей PWA.partners,100,percent,Андреева,
 2026-10,projects,ALL,inbox_triggers,Инбоксы про все триггерные события в продукте,100,percent,Кисицын,
-2026-11,late_ftd,TR,late_ftd_count,Поздние FTD,,players,Команда,
-2026-11,late_ftd,AR,late_ftd_count,Поздние FTD,,players,Команда,
-2026-11,late_ftd,CO,late_ftd_count,Поздние FTD,,players,Команда,
-2026-11,late_ftd,IN,late_ftd_count,Поздние FTD,,players,Команда,
-2026-11,crm,TR,trigger_email_open_rate,Open Rate триггерных писем,,percent,Кафтасьев,
-2026-11,crm,AR,trigger_email_open_rate,Open Rate триггерных писем,,percent,Кафтасьев,
-2026-11,crm,CO,trigger_email_open_rate,Open Rate триггерных писем,,percent,Кафтасьев,
-2026-11,retention,TR,retention_d3_plus,D3+ Retention (месяц FTD),,percent,Команда,
-2026-11,retention,AR,retention_d3_plus,D3+ Retention (месяц FTD),,percent,Команда,
-2026-11,retention,CO,retention_d3_plus,D3+ Retention (месяц FTD),,percent,Команда,
-2026-11,retention,IN,retention_d3_plus,D3+ Retention (месяц FTD),,percent,Команда,
-2026-11,projects,ALL,loyalty_comms,Адаптировать коммуникации под новую программу лояльности,75,percent,Кислицын,
-2026-11,projects,ALL,levels,Запустить триггерные коммуникационные цепочки по статусам (levels),100,percent,Команда,
+2026-11,late_ftd,TR,late_ftd_count,Поздние FTD,350,players,Команда,306
+2026-11,late_ftd,AR,late_ftd_count,Поздние FTD,650,players,Команда,608
+2026-11,late_ftd,CO,late_ftd_count,Поздние FTD,1500,players,Команда,1453
+2026-11,crm,TR,trigger_email_open_rate,Open Rate триггерных писем,25,percent,Кафтасев,21
+2026-11,crm,AR,trigger_email_open_rate,Open Rate триггерных писем,20,percent,Кафтасев,14
+2026-11,crm,CO,trigger_email_open_rate,Open Rate триггерных писем,15,percent,Кафтасев,12
+2026-11,retention,TR,retention_d3_plus,D3+ Retention (месяц FTD),,percent,Шибут,
+2026-11,retention,AR,retention_d3_plus,D3+ Retention (месяц FTD),,percent,Шибут,
+2026-11,retention,CO,retention_d3_plus,D3+ Retention (месяц FTD),,percent,Шибут,
+2026-11,retention,IN,retention_d3_plus,D3+ Retention (месяц FTD),,percent,Шибут,
+2026-11,projects,ALL,loyalty_comms,Адаптировать коммуникации под новую программу лояльности,75,percent,Кислицын,0
+2026-11,projects,ALL,levels_chains,Запустить триггерные коммуникационные цепочки по статусам (levels),100,percent,Команда,0
 2026-11,projects,ALL,crm_dashboard,Разработать и реализовать CRM-дашборд,100,percent,Андреева,75
-2026-11,projects,ALL,autocalls,Протестировать автодозвоны: триггерные и реактивационные,100,percent,Команда,0
-2026-11,projects,ALL,push_timing,Изменить тайминг отправки пушей в SKAKapp и других сервисах аренды,100,percent,Андреева,0
-2026-11,projects,ALL,retargeting,Запустить ретаргетинг через Ubidex,100,percent,Шибут,0
 2026-11,projects,TR,cold_ftd,Привлечь FTD рассылками по холодной базе (mail + whatsapp),100,players,Шибут,0
+2026-11,projects,ALL,autocalls,"Протестировать инструмент автодозвонов, триггерные и реактивационные",100,percent,Команда,0
+2026-11,projects,ALL,push_timing,Изменить тайминг отправки пушей в SKAКapp и других сервисах аренды,100,percent,Андреева,0
+2026-11,projects,ALL,ubidex_retargeting,Запустить ретаргетинг через Ubidex,100,percent,Шибут,0
