@@ -16,7 +16,7 @@ with st.sidebar:
   if st.button(label,key=key,use_container_width=True,type='primary' if page==key else 'secondary'):
    st.query_params.clear();st.query_params['page']=key;st.rerun()
  st.caption('TR · AR · CO · IN — основные GEO')
- st.caption('Дата актуальности указана в шапке каждого отчёта. CRM содержит тестовые агрегаты Smartico за 3 и 5 ноября; канальная детализация дана по фактическому дню отправки, статусы доступны до 7 ноября.')
+ st.caption('Дата актуальности указана в шапке каждого отчёта. CRM: campaign summary за 3 и 5 ноября; подробные канальные статусы по отправкам 3 ноября доходят до 15 ноября.')
 path=ROOT/(page+'.html')
 if not path.exists():st.error('Файл раздела отсутствует: '+path.name);st.stop()
 html=path.read_text()
