@@ -6,7 +6,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 ROOT=Path(__file__).resolve().parent
 st.set_page_config(page_title='Отчёты отдела',layout='wide')
-PAGES={'index':'Главная · план–факт','late_ftd':'Долёты','retention':'Ретеншен и воронка','pulsation':'Пульсация','reactivation':'Чарн и реактивация','crm':'CRM · макет','crm_controls':'CRM · контрольные группы','crm_experiment':'CRM · эксперимент','projects':'Задачи команды'}
+PAGES={'index':'Главная · план–факт','late_ftd':'Долёты','retention':'Ретеншен и воронка','pulsation':'Пульсация','reactivation':'Чарн и реактивация','crm':'CRM · Smartico test','crm_controls':'CRM · контрольные группы','crm_experiment':'CRM · эксперимент','projects':'Задачи команды'}
 page=st.query_params.get('page','index')
 if page=='home':page='index'
 if page not in PAGES:page='index'
@@ -16,7 +16,7 @@ with st.sidebar:
   if st.button(label,key=key,use_container_width=True,type='primary' if page==key else 'secondary'):
    st.query_params.clear();st.query_params['page']=key;st.rerun()
  st.caption('TR · AR · CO · IN — основные GEO')
- st.caption('Дата актуальности указана в шапке каждого отчёта. CRM пока без данных.')
+ st.caption('Дата актуальности указана в шапке каждого отчёта. CRM содержит тестовые агрегаты Smartico за 3 и 5 ноября; канальная детализация дана по фактическому дню отправки, статусы доступны до 7 ноября.')
 path=ROOT/(page+'.html')
 if not path.exists():st.error('Файл раздела отсутствует: '+path.name);st.stop()
 html=path.read_text()
